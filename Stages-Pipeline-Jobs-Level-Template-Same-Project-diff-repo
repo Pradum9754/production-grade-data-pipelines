@@ -1,0 +1,30 @@
+resources:
+  repositories:
+  - repository: template-repo
+    type: git
+    name: template-repo
+    ref: refs/heads/main
+
+
+trigger: none
+
+pool:
+  name: todo-app-agent
+
+name: todo-app
+
+stages:
+  - stage: terraforminit
+    displayName: "Terraform Init"
+    jobs:
+      - template: templates/terraform-init.yml@template-repo
+
+  - stage: terraformvalidationplan
+    displayName: "Terraform Validation Plan"
+    jobs:
+      - template: templates/terraform-init.yml@template-repo
+
+  - stage: terraformapply
+    displayName: "Terraform Apply"
+    jobs:
+      - template: templates/terraform-init.yml@template-repo
