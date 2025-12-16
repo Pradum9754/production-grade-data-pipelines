@@ -1,0 +1,119 @@
+parameters: 
+  - name: environment
+    displayName: parameters
+    type: string
+    default: dev
+    values:
+      - dev
+      - prod
+
+variables:
+- name: dev_svc
+  value: multi subs for multi env
+- name: prod_svc
+  value: multi-conn2
+
+- name: select_svc
+  ${{if eq(parameters.environment, 'prod')}}:
+  value: multi subs for multi env
+
+# - name: select_svc
+  ${{ else }}:
+  value: multi-conn2
+
+# variables for storage account
+
+- name: dev_backend
+  value: stg8983w894widev1
+- name: prod_backend
+  value: stg8983w894prod1
+
+- name: select_backend
+  ${{if eq(parameters.environment, 'prod')}}:
+  value: stg8983w894widev1
+  ${{ else }}:
+  value: stg8983w894prod1
+
+# variables for storage account container
+
+- name: dev_con
+  value: azzu1
+- name: prod_con
+  value: azzu2
+
+- name: select_con
+  ${{if eq(parameters.environment, 'prod')}}:
+  value: prod_con
+  ${{ else }}:
+  value: azzu1
+
+
+trigger: none
+pool: mult-subs-agent
+name: diff-diff-subs
+stages:
+  - stage: built
+    displayName: terraform-init-validate
+    jobs:
+      - job: terraforminit
+        displayName: terraforinitvalidate
+        steps: 
+        - task: TerraformTask@5
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            workingDirectory: '$(System.DefaultWorkingDirectory)/env/${{ parameters.environment }}'
+            backendServiceArm: 'multi subs for multi env'
+            backendAzureRmResourceGroupName: 'rg001-dev'
+            backendAzureRmStorageAccountName: 'stg8983w894widev1'
+            backendAzureRmContainerName: 'azzu1'
+            backendAzureRmKey: '${{ parameters.environment }}.terraform.tfstate'
+        - task: TerraformTask@5
+          inputs:
+            provider: 'azurerm'
+            command: 'validate'
+            workingDirectory: '$(System.DefaultWorkingDirectory)/env/${{ parameters.environment }}'
+  - stage: test
+    displayName: teraaform-plan
+    jobs:
+      - job: terraformplan
+        displayName: terraformplan
+        steps: 
+        - task: TerraformTask@5
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            workingDirectory: '$(System.DefaultWorkingDirectory)/env/${{ parameters.environment }}'
+            backendServiceArm: 'multi subs for multi env'
+            backendAzureRmResourceGroupName: 'rg001-dev'
+            backendAzureRmStorageAccountName: 'stg8983w894widev1'
+            backendAzureRmContainerName: 'azzu1'
+            backendAzureRmKey: '${{ parameters.environment }}.terraform.tfstate'
+        - task: TerraformTask@5
+          inputs:
+            provider: 'azurerm'
+            command: 'plan'
+            workingDirectory: '$(System.DefaultWorkingDirectory)/env/${{ parameters.environment }}'
+            environmentServiceNameAzureRM: 'multi subs for multi env'
+  - stage: deploy
+    displayName: terraform apply
+    jobs:
+      - job: terraformapply
+        displayName: terraformapply
+        steps: 
+        - task: TerraformTask@5
+          inputs:
+            provider: 'azurerm'
+            command: 'init'
+            workingDirectory: '$(System.DefaultWorkingDirectory)/env/${{ parameters.environment }}'
+            backendServiceArm: 'multi subs for multi env'
+            backendAzureRmResourceGroupName: 'rg001-dev'
+            backendAzureRmStorageAccountName: 'stg8983w894widev1'
+            backendAzureRmContainerName: 'azzu1'
+            backendAzureRmKey: '${{ parameters.environment }}.terraform.tfstate'
+        - task: TerraformTask@5
+          inputs:
+            provider: 'azurerm'
+            command: 'apply'
+            workingDirectory: '$(System.DefaultWorkingDirectory)/env/${{ parameters.environment }}'
+            environmentServiceNameAzureRM: 'multi subs for multi env'
