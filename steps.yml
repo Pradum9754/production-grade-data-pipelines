@@ -1,0 +1,51 @@
+trigger: 
+- main
+
+pool: agent-vm-steps-pool-pipeline
+
+steps: 
+- task: TerraformInstaller@1
+  displayName: "terraform intall"
+  inputs:
+    terraformVersion: 'latest'
+- task: TerraformTask@5
+  displayName: "terraform init"
+  inputs:
+    provider: 'azurerm'
+    command: 'init'
+    backendServiceArm: 'steps-sev-pipeline'
+    backendAzureRmOverrideSubscriptionID: '4a8937a7-b294-4a1f-8d31-79bbb1a4c17f'
+    backendAzureRmResourceGroupName: 'Pipe-new-RG'
+    backendAzureRmStorageAccountName: 'pipenewstg1'
+    backendAzureRmContainerName: 'conzenex1'
+    backendAzureRmKey: 'terraform.tfstate'
+- task: TerraformTask@5
+  displayName: "terraform validate"
+  inputs:
+    provider: 'azurerm'
+    command: 'validate'
+- task: TerraformTask@5
+  displayName: "terraform plan"
+  inputs:
+    provider: 'azurerm'
+    command: 'plan'
+    commandOptions: '-detailed-exitcode'
+    environmentServiceNameAzureRM: 'steps-sev-pipeline'
+- task: TerraformTask@5
+  displayName: "terraform show"
+  inputs:
+    provider: 'azurerm'
+    command: 'show'
+    outputTo: 'console'
+    outputFormat: 'json'
+    environmentServiceNameAzureRM: 'steps-sev-pipeline'
+- task: TerraformTask@5
+  displayName: "terraform apply"
+  condition: succeeded ()  # Run only if previous steps succeed
+  timeoutInMinutes: 20
+  continueOnError: false  # Fail pipeline if apply fails
+  inputs:
+    provider: 'azurerm'
+    command: 'apply'
+    commandOptions: '-auto-approve'
+    environmentServiceNameAzureRM: 'steps-sev-pipeline'
