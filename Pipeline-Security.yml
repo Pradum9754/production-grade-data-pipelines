@@ -1,0 +1,106 @@
+trigger: none
+
+name: VM-DEPLOYMENT-PIPELINE
+
+pool: fullstack-agent  # ✅ make sure agent folder path has NO spaces!
+
+stages:
+# ---------- STAGE 1: BUILD (Install, Init, Validate) ----------
+- stage: BUILD
+  displayName: "Terraform Install, Init, and Validate"
+  jobs:
+  - job: terraform_install_init_validate
+    displayName: "Terraform Install + Init + Validate"
+    steps:
+    - task: TerraformInstaller@1
+      displayName: "Install Latest Terraform"
+      inputs:
+        terraformVersion: 'latest'
+
+    # ✅ Optional sanity check
+    - script: terraform -version
+      displayName: "Check Terraform Version"
+
+    - task: TerraformTask@5
+      displayName: "Terraform Init"
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
+        backendServiceArm: 'vm-deployment-service'
+        backendAzureRmResourceGroupName: 'rg-dev'
+        backendAzureRmStorageAccountName: 'storagedevsolid1'
+        backendAzureRmContainerName: 'containerdev1'
+        backendAzureRmKey: 'dev.terraform.tfstate'
+
+    - task: TerraformTask@5
+      displayName: "Terraform Validate"
+      inputs:
+        provider: 'azurerm'
+        command: 'validate'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
+
+# ---------- STAGE 2: TEST (Plan) ----------
+- stage: TEST
+  displayName: "Terraform Plan"
+  dependsOn: BUILD
+  jobs:
+  - job: terraform_init_plan
+    displayName: "Terraform Init + Plan"
+    steps:
+    - task: TerraformTask@5
+      displayName: "Terraform Init"
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
+        backendServiceArm: 'vm-deployment-service'
+        backendAzureRmResourceGroupName: 'rg-dev'
+        backendAzureRmStorageAccountName: 'storagedevsolid1'
+        backendAzureRmContainerName: 'containerdev1'
+        backendAzureRmKey: 'dev.terraform.tfstate'
+    - task: DownloadSecureFile@1
+      name: downloadTfVars
+      inputs:
+        secureFile: 'terraform.tfvars'
+    - task: TerraformTask@5
+      displayName: "Terraform Plan"
+      inputs:
+        provider: 'azurerm'
+        command: 'plan'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
+        commandOptions: '-var-file "$(downloadTfVars.secureFilePath)"'
+        environmentServiceNameAzureRM: 'vm-deployment-service'
+
+    # ✅ Manual Validation (after successful Plan)
+    - task: ManualValidation@1
+      displayName: manual approval before apply
+      inputs:
+        notifyUsers: 'pradum@yamlidentationgmail.onmicrosoft.com'
+        approvers: 'approved'
+
+# ---------- STAGE 3: DEPLOY (Apply) ----------
+
+
+- stage: DEPLOY
+  displayName: "Terraform Apply"
+  dependsOn: TEST
+  jobs:
+  - job: terraform_apply
+    displayName: "Terraform Apply"
+    steps:
+    # ✅ Download the secure terraform.tfvars file
+    - task: DownloadSecureFile@1
+      name: downloadTfVars
+      inputs:
+        secureFile: 'terraform.tfvars'
+
+    # ✅ Run terraform apply
+    - task: TerraformTask@5
+      displayName: "Terraform Apply"
+      inputs:
+        provider: 'azurerm'
+        command: 'apply'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/environments/dev'
+        commandOptions: '-var-file "$(downloadTfVars.secureFilePath)" -auto-approve'
+        environmentServiceNameAzureRM: 'vm-deployment-service'
