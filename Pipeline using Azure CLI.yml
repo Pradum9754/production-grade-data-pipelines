@@ -1,0 +1,40 @@
+trigger:
+- feature/*
+- main
+
+pool:
+  name: todo-pool
+
+steps: 
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: 'Todo-App-Service'
+    scriptType: 'ps'
+    scriptLocation: 'inlineScript'
+    inlineScript: 'az group list'
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: 'Todo-App-Service'
+    scriptType: 'ps'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      cd environments/dev
+      terraform init
+      terraform fmt
+      terraform validate
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: 'Todo-App-Service'
+    scriptType: 'ps'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      cd environments/dev
+      terraform plan
+- task: AzureCLI@2
+  inputs:
+    azureSubscription: 'Todo-App-Service'
+    scriptType: 'ps'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      cd environments/dev
+      terraform apply -auto-approve
